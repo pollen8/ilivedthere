@@ -1,0 +1,9 @@
+{
+  "name": "mary",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "circos": "^2.0.3"
+  }
+}
