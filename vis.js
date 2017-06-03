@@ -14,7 +14,7 @@ var configuration = {
     position: 'center',
     size: '14px',
     color: '#fff',
-    opacity: 0.3,
+    opacity: 0.5,
     radialOffset: 10,
   },
   ticks: {
@@ -56,12 +56,20 @@ var data2 = [
     {start: 1974, end: 1974, elevation: 92.0, livingAs: 'married', address: 'Sherwood Crescente', town: 'Market Drayton', county: 'Shropshire', country: 'England', lat: 52.8982439,lon: -2.5097861},
     {start: 1974, end: 1976, elevation: 13.0, livingAs: 'married at parents', address: '', town: 'Newton Abbot', county: 'Devon', country: 'England', lat: 50.5286976, lon:-3.6277634},
     {start: 1974, end: 1976, elevation: 54.0, livingAs: 'married at parents', address: 'Elm Drive', town: 'Brighton', county: 'Sussex', country: 'England', lat: 50.8422435,lon:-0.1966622},
-    {start: 1976, end: 1982, elevation: 48.0, ivingAs: 'married with children', address: '11 Amroth Mews', town: 'Leamington Spa', county: 'Warks', country: 'England', lat: 52.2824413,lon:-1.5156296},
+    {start: 1976, end: 1982, elevation: 48.0, livingAs: 'married with children', address: '11 Amroth Mews', town: 'Leamington Spa', county: 'Warks', country: 'England', lat: 52.2824413,lon:-1.5156296},
     {start: 1982, end: 1996, elevation: 130.0, livingAs: 'married with children', address: '57 Seven Star Road', town: 'Solihull', county: 'Warks', country: 'England', lat: 52.4218477, lon: -1.7884191},
     {start: 1996, end: 2009, elevation: 125.0, livingAs: 'married with children', address: 'Coney Brae, 155 West Malvern Road', town: 'Malvern', county: 'Worcestershire', country: 'England',lat: 52.1176171,lon:-2.3476166},
     {start: 2009, end: 2015, elevation: 125.0, livingAs: 'married', address: 'Perrycroft Lodge, Jubilee Drive', town: 'Upper Colwall', county: 'Worcestershire', country: 'England', lat: 52.0742539,lon:-2.3445648},
     {start: 2015, end: 2017, elevation: 125.0, livingAs: 'married', address: 'Larchdale, Chase Road', town: 'Upper Colwall', county: 'Worcestershire', country: 'England', lat: 52.0823245,lon:-2.3397809},
 ]
+
+// data2 = data2.map(function(d) {
+//     d.lon = d.lon* -1;
+//     return d;
+// })
+
+
+
 
 var start = data2.reduce(function(prev, next) {
      return next.start < prev ? next.start : prev;
@@ -76,6 +84,8 @@ var total = end - start;
 var minLat = data2.reduce(function(prev, next) { return next.lat < prev ? next.lat : prev; }, 90);
 var maxLat = data2.reduce(function(prev, next) { return next.lat > prev ? next.lat : prev; }, -90);
 
+var minLon = data2.reduce(function(prev, next) { return next.lon < prev ? next.lon : prev; }, 180);
+var maxLon = data2.reduce(function(prev, next) { return next.lon > prev ? next.lon : prev; }, 0);
 
 // generated here http://tools.medialab.sciences-po.fr/iwanthue/
 var colorScale = d3.scaleOrdinal(["#efbe79",
@@ -107,13 +117,15 @@ var counties = data2.reduce(function(prev, next) {
     return prev;
 }, []);
 
-console.log(countries, counties, colorScale);
+// console.log(countries, counties, colorScale);
 data = data2.map(function(row, i) {
     return {
         id: 'place' + i,
         len: row.end + 1 - row.start,
         label: row.end + 1 - row.start,
-        color: colorScale(counties.indexOf(row.county))
+        color: colorScale(counties.indexOf(row.county)),
+        livingAs: row.livingAs,
+        town: row.town
     }
 })
 
@@ -129,6 +141,68 @@ var textData = data2.map(function(row, i) {
     };
 })
 
+// Chords
+var chords = [];
+var changesInLivingAs = data
+.reduce(function(prev, next, i) {
+    var f = prev.find(function(p) {
+        p.livingAs === next.livingAs;
+    });
+    //console.log(prev, next, f);
+    if (f === undefined) {
+        prev.push(next);
+        data.forEach(function(d, di) {
+            // if (di === i) {
+            //     return;
+            // }
+            if (d.livingAs === next.livingAs) {
+                chords.push({
+                    source: {
+                        id: next.id,
+                        start: 1, 
+                        end: 1,
+                        town: next.town,
+                        livingAs: d.livingAs
+                    },
+                    target: {
+                        id: d.id, 
+                        start: 1, 
+                        end: 1.2,
+                        town: d.town
+
+                    }
+                    
+                })
+            }
+        })
+    }
+    return prev;
+}, []);
+
+
+myCircos.chords('chords', chords, {
+  color: function(chord) {
+      var i = changesInLivingAs.findIndex(function(c) {
+          return c.livingAs == chord.source.livingAs;
+      });
+      var c=  i === undefined ? colorScale(-1) : colorScale(i);//'#fd6a62'
+      c =  d3.hsl(c);
+      c.l += 0.1;
+      c.opacity = 0.5;
+      return c;
+  },
+  opacity: 0.7,
+  zIndex: 1,
+  tooltipContent: null,
+  min: null,
+  max: null,
+  logScale: false,
+  logScaleBase: Math.E,
+  tooltipContent: function(chord) {
+      return chord.source.livingAs + ': ' + chord.source.town + ' -> ' + chord.target.town;
+  }
+});
+
 // Text label
 myCircos.text(
     'text',
@@ -139,7 +213,7 @@ myCircos.text(
       style: {
         'font-size': 12,
         fill: 'rgb(238, 238, 238)',
-        opacity:0.4,
+        opacity:0.7,
       },
     
     },
@@ -154,7 +228,6 @@ var elevationData = data2.map(function(row, i) {
         town: row.town,
     }
 })
-console.log('elevationData', elevationData);
 myCircos.line('elevation', elevationData, {
       innerRadius: 0.4,
       outerRadius: 0.65,
@@ -199,35 +272,38 @@ myCircos.scatter('scatter', elevationData, {
 
 var latlonData = [];
 data2.forEach(function(row, i) {
+    var lonScale = d3.scaleLinear()
+        .domain([minLon - 5, maxLon + 5])
+        .range([0, row.end + 1 - row.start]);
     var latScale = d3.scaleLinear()
     .domain([minLat, maxLat])
     .range([0, row.end + 1 - row.start]);
-    console.log('scale', row.town, row.lat, latScale(row.lat));
+    // console.log('scale', row.town, row.lat, latScale(row.lat));
     latlonData.push(Object.assign({}, row, {
         block_id: 'place' + i, 
-        position: latScale(row.lat),
-        value: row.lon,
+        position: lonScale(row.lon),//latScale(row.lat),
+        value: row.lat,
     }))
 })
-console.log('latlonData', latlonData);
-
+//console.log('latlonData', latlonData);
+console.log(minLon, maxLon); 
 myCircos.scatter('latlon', latlonData, {
       innerRadius: 0.7,
       outerRadius: 0.9,
       thickness: 0,
       maxGap: 1000,
-      min: 0,
+    min: minLat,
+    max: maxLat,
       color: colorScale(8),
       axes: [
         {
-          spacing: 4.5,
+          spacing: 12,
           thickness: 1,
           opacity: 0.3,
           color: colorScale(1)
         }
       ],
       tooltipContent: function(datum, index) {
-          console.log(datum);
           return `${datum.town}: ${datum.lat},${datum.lon}`;
       }
     });
